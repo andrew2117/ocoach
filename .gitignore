@@ -1,0 +1,3 @@
+# Filled-in production secrets. The example file is safe to commit.
+.env
+.env.production

@@ -1,0 +1,25 @@
+# Local Piston sandbox for compile_and_test_cpp.
+# Packages persist in ./data (bind-mounted to /piston). If you already ran
+# `docker run -v ~/piston:/piston`, copy or symlink that tree to ./data
+# or set PISTON_DATA to that directory.
+#
+#   docker compose up -d
+#
+# Recreating the container is required for env changes to take effect.
+
+services:
+  api:
+    image: ghcr.io/engineer-man/piston
+    container_name: piston_api
+    restart: unless-stopped
+    privileged: true
+    ports:
+      - "127.0.0.1:2000:2000"
+    environment:
+      # Default is 1024 chars; CP sample I/O and multi-query dumps need more.
+      # 64 KiB still bounds yes-bombs / runaway output.
+      PISTON_OUTPUT_MAX_SIZE: "65536"
+    volumes:
+      - ${PISTON_DATA:-./data}:/piston
+    tmpfs:
+      - /tmp:exec

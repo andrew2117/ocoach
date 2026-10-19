@@ -1,0 +1,95 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# A later push waits. Cancelling an in-flight SSH rollout can leave the VPS
+# half-updated.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  frontend:
+    name: Frontend (Vercel)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Hand off to Vercel
+        run: |
+          echo "The Next.js app deploys through Vercel's GitHub integration on push to main."
+          echo "Set these in the Vercel project (Production):"
+          echo "  NEXT_PUBLIC_API_URL=https://api.ocoach.app"
+          echo "  NEXT_PUBLIC_SUPABASE_URL"
+          echo "  NEXT_PUBLIC_SUPABASE_ANON_KEY"
+
+  backend:
+    name: Backend image and VPS rollout
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Image name
+        id: meta
+        run: |
+          repo="$(printf '%s' "${GITHUB_REPOSITORY}" | tr '[:upper:]' '[:lower:]')"
+          echo "image=ghcr.io/${repo}/backend" >> "${GITHUB_OUTPUT}"
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile
+          push: true
+          provenance: false
+          tags: |
+            ${{ steps.meta.outputs.image }}:${{ github.sha }}
+            ${{ steps.meta.outputs.image }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # The image is built above. The VPS pulls that tag and recreates only
+      # the API container (--no-deps leaves Caddy, Qdrant, and Piston alone).
+      # `--build` is reserved for the first boot from a checkout, when GHCR
+      # does not have an image yet; rebuilding here would compile the same
+      # Dockerfile a second time on the VPS.
+      - name: Roll out on the VPS
+        uses: appleboy/ssh-action@v1.2.2
+        env:
+          GHCR_USERNAME: ${{ secrets.GHCR_USERNAME }}
+          GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
+          BACKEND_IMAGE: ${{ steps.meta.outputs.image }}
+          BACKEND_IMAGE_TAG: ${{ github.sha }}
+          VPS_DEPLOY_PATH: ${{ secrets.VPS_DEPLOY_PATH }}
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          envs: GHCR_USERNAME,GHCR_TOKEN,BACKEND_IMAGE,BACKEND_IMAGE_TAG,VPS_DEPLOY_PATH
+          script: |
+            set -euo pipefail
+            cd "${VPS_DEPLOY_PATH}"
+            git pull --ff-only origin main
+            printf '%s' "${GHCR_TOKEN}" | docker login ghcr.io -u "${GHCR_USERNAME}" --password-stdin
+            export BACKEND_IMAGE BACKEND_IMAGE_TAG
+            docker compose --env-file .env.production -f docker-compose.prod.yml pull backend
+            docker compose --env-file .env.production -f docker-compose.prod.yml up -d --no-deps backend
+            docker compose --env-file .env.production -f docker-compose.prod.yml up -d caddy
+            docker compose --env-file .env.production -f docker-compose.prod.yml exec -T caddy caddy reload --config /etc/caddy/Caddyfile
+            docker logout ghcr.io
+            docker image prune -f

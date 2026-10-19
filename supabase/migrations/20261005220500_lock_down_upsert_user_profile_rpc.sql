@@ -1,0 +1,33 @@
+-- Follow-up to 20261005220000_add_multi_provider_byok.sql: that migration's
+-- `revoke all on function ... from public;` only revokes the implicit
+-- PUBLIC-pseudo-role grant. This project's `public` schema has
+-- `ALTER DEFAULT PRIVILEGES ... GRANT EXECUTE ON FUNCTIONS TO anon,
+-- authenticated, service_role` configured at the database level, so any
+-- newly created function owned by `postgres` -- including the
+-- just-replaced `upsert_user_profile` -- picks up *direct* EXECUTE grants
+-- to `anon` and `authenticated` on creation, independent of the PUBLIC
+-- revoke. (Confirmed live: `get_advisors(type="security")` flagged
+-- `anon_security_definer_function_executable` /
+-- `authenticated_security_definer_function_executable` for this exact
+-- function immediately after the prior migration ran.)
+--
+-- That is a real, exploitable gap for this specific function: it is
+-- `security definer` and trusts its `p_user_id` argument outright (by
+-- design -- the backend passes the JWT-verified caller's id, see
+-- `backend/routes/profile.py`). If `anon`/`authenticated` could call it
+-- directly via `/rest/v1/rpc/upsert_user_profile`, any signed-in (or even
+-- anonymous, if anon-key sign-ups are allowed) caller could overwrite any
+-- *other* user's `codeforces_handle` and all three provider API keys by
+-- simply passing a different `p_user_id` -- a full cross-tenant account
+-- takeover of BYOK credentials, bypassing RLS entirely (SECURITY DEFINER
+-- functions are not subject to the caller's RLS policies).
+--
+-- This almost certainly also affected the pre-Phase-11 3-arg
+-- `upsert_user_profile(uuid, text, text)` this one replaced (same
+-- `revoke ... from public` + default-privileges setup existed then too) --
+-- it just hadn't been caught. Explicitly revoking from `anon`/
+-- `authenticated` (not just `public`) here closes it for good, regardless
+-- of the schema's default-privilege configuration, and any future
+-- `security definer` RPC added to this schema should do the same rather
+-- than relying on `revoke ... from public` alone.
+revoke execute on function public.upsert_user_profile(uuid, text, text, text, text, text) from anon, authenticated;

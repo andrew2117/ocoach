@@ -1,0 +1,116 @@
+# Production stack for the VPS half of the hybrid deploy.
+# The Next.js app stays on Vercel and calls https://api.ocoach.app.
+#
+# Only Caddy publishes ports. Qdrant and Piston stay on ocoach-network.
+# Piston is privileged and mounts the Docker socket because it compiles C++
+# by starting sibling containers. That socket is root on the host: do not
+# publish Piston's port, and do not run unrelated workloads on this VPS.
+#
+# Interpolation (BACKEND_IMAGE, API_DOMAIN, ...) reads the shell and the
+# file passed to `docker compose --env-file`. Container secrets are injected
+# with env_file. Those are different mechanisms.
+
+name: ocoach
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  caddy:
+    image: caddy:2-alpine
+    container_name: ocoach-caddy
+    restart: unless-stopped
+    init: true
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      API_DOMAIN: ${API_DOMAIN:-api.ocoach.app}
+      ACME_EMAIL: ${ACME_EMAIL:-admin@ocoach.app}
+      FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:-https://ocoach.app}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - ocoach-network
+    depends_on:
+      backend:
+        condition: service_healthy
+    logging: *default-logging
+
+  backend:
+    image: ${BACKEND_IMAGE:-ghcr.io/ocoach/backend}:${BACKEND_IMAGE_TAG:-latest}
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: ocoach-backend
+    restart: unless-stopped
+    init: true
+    env_file:
+      - .env.production
+    environment:
+      QDRANT_HOST: qdrant
+      QDRANT_PORT: "6333"
+      PISTON_API_URL: http://piston:2000/api/v2/execute
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONUNBUFFERED: "1"
+    networks:
+      - ocoach-network
+    depends_on:
+      qdrant:
+        condition: service_healthy
+      piston:
+        condition: service_started
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    logging: *default-logging
+
+  qdrant:
+    image: qdrant/qdrant:v1.15.1
+    container_name: ocoach-qdrant
+    restart: unless-stopped
+    volumes:
+      - qdrant_data:/qdrant/storage
+    networks:
+      - ocoach-network
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/127.0.0.1/6333'"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    logging: *default-logging
+
+  piston:
+    image: ghcr.io/engineer-man/piston
+    container_name: ocoach-piston
+    restart: unless-stopped
+    privileged: true
+    environment:
+      PISTON_OUTPUT_MAX_SIZE: "65536"
+    volumes:
+      - piston_data:/piston
+      - /var/run/docker.sock:/var/run/docker.sock
+    tmpfs:
+      - /tmp:exec
+    networks:
+      - ocoach-network
+    logging: *default-logging
+
+networks:
+  ocoach-network:
+    driver: bridge
+    name: ocoach-network
+
+volumes:
+  qdrant_data:
+  caddy_data:
+  caddy_config:
+  piston_data:
