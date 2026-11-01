@@ -1,0 +1,30 @@
+name: Delete PR Preview
+
+on:
+  pull_request_target:
+    types: [closed]
+
+jobs:
+  delete_pr_preview:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout gh-pages branch
+        uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+
+      - name: Configure Git identity
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Delete PR directory
+        run: |
+          PR_DIR="${{ github.event.pull_request.number }}"
+          if [ ! -d "${PR_DIR}" ]; then
+            echo "No preview directory for #${PR_DIR}; nothing to delete."
+            exit 0
+          fi
+          git rm -r --quiet "${PR_DIR}"
+          git commit -m "Delete preview for #${PR_DIR}"
+          git push origin gh-pages

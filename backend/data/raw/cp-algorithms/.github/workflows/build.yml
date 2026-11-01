@@ -1,0 +1,47 @@
+name: Build
+
+on: 
+  push:
+    branches:    
+      - main
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: recursive
+      - name: Set up Python
+        uses: actions/setup-python@v5.2.0
+        with:
+          python-version: '3.11'
+      - name: Install mkdocs-material
+        run: |
+          scripts/install-mkdocs.sh
+      - name: Cache Github Users
+        uses: actions/cache@v3
+        with:
+          path: authors.json
+          key: test-${{ github.event_name }}-github-users-v0.1
+      - name: Build pages
+        env:
+          MKDOCS_GIT_COMMITTERS_BRANCH: ${{ github.ref_name }}
+          MKDOCS_GIT_COMMITTERS_APIKEY: ${{ github.token }}
+          MKDOCS_ENABLE_GIT_REVISION_DATE: ${{ github.token && 'True' || 'False' }}
+          MKDOCS_ENABLE_GIT_COMMITTERS: ${{ github.token && 'True' || 'False' }}
+        run: |
+          mkdocs build --strict
+      - name: Upload pages as an artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ github.event.number || 'main' }}
+          path: public/
