@@ -126,13 +126,31 @@ services:
           curl -sf http://piston:2000/api/v2/runtimes >/dev/null && break
           sleep 2
         done
-        if curl -sf http://piston:2000/api/v2/runtimes | grep -q '"language":"gcc"'; then
-          echo "gcc already installed"
-        else
-          curl -sS -X POST http://piston:2000/api/v2/packages \
+        # GCC is reported by Piston as {"language":"c++","runtime":"gcc"}
+        # (there is no "language":"gcc" entry), so match on the runtime.
+        has_cpp() {
+          curl -sf http://piston:2000/api/v2/runtimes | grep -q '"language":"c++"'
+        }
+        if has_cpp; then
+          echo "c++ runtime (gcc) already installed"
+          exit 0
+        fi
+        # The package download can be slow or flaky; retry and verify so a
+        # silent failure doesn't leave the sandbox without a C++ runtime.
+        for attempt in 1 2 3 4 5; do
+          echo "installing gcc (attempt $$attempt)"
+          curl -sS -m 600 -X POST http://piston:2000/api/v2/packages \
             -H 'Content-Type: application/json' \
             -d '{"language":"gcc","version":"*"}'
-        fi
+          echo
+          if has_cpp; then
+            echo "c++ runtime installed"
+            exit 0
+          fi
+          sleep 5
+        done
+        echo "ERROR: failed to install gcc in Piston" >&2
+        exit 1
     logging: *default-logging
 
 networks:
