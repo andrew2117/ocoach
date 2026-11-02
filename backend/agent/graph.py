@@ -466,6 +466,9 @@ _PROVIDER_CONSTRUCTORS: dict[ModelProvider, Callable[[str, str], Runnable]] = {
         timeout=REQUEST_TIMEOUT_SECONDS,
         max_retries=MAX_RETRIES,
     ),
+    # Gemini 3 and 4 require the thought signature from a function call to be
+    # sent back with the tool result. langchain-google-genai 4.4 stores that
+    # signature and fills one in when older history does not have it.
     ModelProvider.GOOGLE: lambda model_id, api_key: ChatGoogleGenerativeAI(
         model=model_id,
         api_key=api_key,
