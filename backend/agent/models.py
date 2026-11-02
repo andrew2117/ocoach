@@ -46,21 +46,36 @@ MODEL_CATALOG: tuple[ModelOption, ...] = (
     ModelOption("gpt-4o", ModelProvider.OPENAI, "GPT-4o"),
     ModelOption("gpt-4o-mini", ModelProvider.OPENAI, "GPT-4o mini"),
     ModelOption("gpt-4.1", ModelProvider.OPENAI, "GPT-4.1"),
-    ModelOption("gemini-1.5-pro-002", ModelProvider.GOOGLE, "Gemini 1.5 Pro"),
-    ModelOption("gemini-1.5-flash-002", ModelProvider.GOOGLE, "Gemini 1.5 Flash"),
+    ModelOption("gemini-4-argon", ModelProvider.GOOGLE, "Gemini 4"),
+    ModelOption("gemini-3.8-flash", ModelProvider.GOOGLE, "Gemini 3.8 Flash"),
+    ModelOption("gemini-3.5-flash-lite", ModelProvider.GOOGLE, "Gemini 3.5 Flash Lite"),
 )
 
 MODEL_BY_ID: dict[str, ModelOption] = {option.id: option for option in MODEL_CATALOG}
 
-# Catalog ids that were offered before they existed on the provider.
-# Anthropic 404s `claude-haiku-5`; Haiku 4.5 (`claude-haiku-4-5`) is the
-# current fast model. Profiles saved with the old id keep working.
-# Google retired the undated `gemini-1.5-pro`/`gemini-1.5-flash` aliases;
-# the `-002` dated versions are what `generateContent` actually serves now.
+# Catalog ids that were offered before they existed on the provider, or that
+# the provider has since retired. Anthropic 404s `claude-haiku-5`; Haiku 4.5
+# (`claude-haiku-4-5`) is the current fast model. Profiles saved with any of
+# these keep working.
+#
+# Google's model lineup churns fast and retires on a published schedule (see
+# https://ai.google.dev/gemini-api/docs/models#model-versions): every
+# `gemini-*` id this app has ever offered — the original undated
+# `gemini-1.5-pro`/`-flash` aliases, their dated `-002` follow-ups, and the
+# `gemini-2.5-*` family (retired 2026-10-20) — is listed here so a profile
+# saved years ago still resolves. `gemini-4-argon` (flagship), `gemini-3.8-
+# flash` (fast), and `gemini-3.5-flash-lite` (cheapest/fastest) are the
+# current non-Live-API models as of 2026-11; re-check that page before
+# assuming these are still current.
 _RETIRED_MODEL_IDS: dict[str, str] = {
     "claude-haiku-5": "claude-haiku-4-5",
-    "gemini-1.5-pro": "gemini-1.5-pro-002",
-    "gemini-1.5-flash": "gemini-1.5-flash-002",
+    "gemini-1.5-pro": "gemini-4-argon",
+    "gemini-1.5-flash": "gemini-3.8-flash",
+    "gemini-1.5-pro-002": "gemini-4-argon",
+    "gemini-1.5-flash-002": "gemini-3.8-flash",
+    "gemini-2.5-pro": "gemini-4-argon",
+    "gemini-2.5-flash": "gemini-3.8-flash",
+    "gemini-2.5-flash-lite": "gemini-3.5-flash-lite",
 }
 
 # Used as the implicit choice for brand-new profiles (see the

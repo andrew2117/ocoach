@@ -48,7 +48,7 @@ class UpdateProfileRequest(BaseModel):
         description=(
             "Model id to use for this user's chats (see GET /api/profile's "
             "`available_models`), e.g. 'claude-sonnet-5', 'gpt-4o', or "
-            "'gemini-1.5-pro-002'. Omit or pass null to leave the existing "
+            "'gemini-4-argon'. Omit or pass null to leave the existing "
             "preference unchanged; defaults to "
             f"{DEFAULT_MODEL_ID!r} for a brand-new profile."
         ),

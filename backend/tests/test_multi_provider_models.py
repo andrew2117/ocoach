@@ -43,14 +43,24 @@ class ResolveModelTests(unittest.TestCase):
         self.assertEqual(option.id, "claude-haiku-4-5")
         self.assertEqual(option.provider, ModelProvider.ANTHROPIC)
 
-    def test_retired_gemini_ids_resolve_to_dated_versions(self) -> None:
-        pro = resolve_model("gemini-1.5-pro")
-        self.assertEqual(pro.id, "gemini-1.5-pro-002")
-        self.assertEqual(pro.provider, ModelProvider.GOOGLE)
+    def test_retired_gemini_ids_resolve_to_current_models(self) -> None:
+        # Every gemini-* id this app has ever offered — the original
+        # undated aliases, their dated -002 follow-ups, and the
+        # since-retired 2.5 family — should still resolve, remapped to a
+        # current (non-Live-API) model.
+        for retired_pro_id in ("gemini-1.5-pro", "gemini-1.5-pro-002", "gemini-2.5-pro"):
+            option = resolve_model(retired_pro_id)
+            self.assertEqual(option.id, "gemini-4-argon")
+            self.assertEqual(option.provider, ModelProvider.GOOGLE)
 
-        flash = resolve_model("gemini-1.5-flash")
-        self.assertEqual(flash.id, "gemini-1.5-flash-002")
-        self.assertEqual(flash.provider, ModelProvider.GOOGLE)
+        for retired_flash_id in ("gemini-1.5-flash", "gemini-1.5-flash-002", "gemini-2.5-flash"):
+            option = resolve_model(retired_flash_id)
+            self.assertEqual(option.id, "gemini-3.8-flash")
+            self.assertEqual(option.provider, ModelProvider.GOOGLE)
+
+        lite = resolve_model("gemini-2.5-flash-lite")
+        self.assertEqual(lite.id, "gemini-3.5-flash-lite")
+        self.assertEqual(lite.provider, ModelProvider.GOOGLE)
 
     def test_catalog_covers_all_three_providers(self) -> None:
         providers = {option.provider for option in MODEL_CATALOG}
@@ -79,12 +89,12 @@ class ResolveLlmFactoryTests(unittest.TestCase):
 
     def test_missing_provider_key_raises_with_resolved_model_attached(self) -> None:
         configurable = {
-            "default_model": "gemini-1.5-pro-002",
+            "default_model": "gemini-4-argon",
             "api_keys": {"anthropic": "sk-ant-fake-aaaaaaaaaaaaaaaa"},
         }
         with self.assertRaises(MissingProviderKeyError) as ctx:
             _resolve_llm(configurable)
-        self.assertEqual(ctx.exception.model.id, "gemini-1.5-pro-002")
+        self.assertEqual(ctx.exception.model.id, "gemini-4-argon")
         self.assertEqual(ctx.exception.model.provider, ModelProvider.GOOGLE)
 
     def test_no_api_keys_at_all_raises_missing_provider_key(self) -> None:
