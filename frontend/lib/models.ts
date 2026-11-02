@@ -24,8 +24,8 @@ export const MODEL_CATALOG: readonly ModelOption[] = [
   { id: "gpt-4o", provider: "openai", label: "GPT-4o" },
   { id: "gpt-4o-mini", provider: "openai", label: "GPT-4o mini" },
   { id: "gpt-4.1", provider: "openai", label: "GPT-4.1" },
-  { id: "gemini-1.5-pro", provider: "google", label: "Gemini 1.5 Pro" },
-  { id: "gemini-1.5-flash", provider: "google", label: "Gemini 1.5 Flash" },
+  { id: "gemini-1.5-pro-002", provider: "google", label: "Gemini 1.5 Pro" },
+  { id: "gemini-1.5-flash-002", provider: "google", label: "Gemini 1.5 Flash" },
 ] as const;
 
 export const DEFAULT_MODEL_ID = "claude-sonnet-5";
@@ -33,6 +33,8 @@ export const DEFAULT_MODEL_ID = "claude-sonnet-5";
 /** Ids this app used to offer that the provider does not serve. */
 const RETIRED_MODEL_IDS: Readonly<Record<string, string>> = {
   "claude-haiku-5": "claude-haiku-4-5",
+  "gemini-1.5-pro": "gemini-1.5-pro-002",
+  "gemini-1.5-flash": "gemini-1.5-flash-002",
 };
 
 /** Rewrites a retired catalog id so a saved preference still matches an option. */

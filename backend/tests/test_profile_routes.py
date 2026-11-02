@@ -84,7 +84,7 @@ class ProfileRoutesTests(unittest.TestCase):
         self.assertIsNone(body["anthropic_api_key_preview"])
         model_ids = {m["id"] for m in body["available_models"]}
         self.assertIn("gpt-4o", model_ids)
-        self.assertIn("gemini-1.5-pro", model_ids)
+        self.assertIn("gemini-1.5-pro-002", model_ids)
         self.assertIn("claude-sonnet-5", model_ids)
 
     def test_save_requires_at_least_one_key_on_first_save(self) -> None:

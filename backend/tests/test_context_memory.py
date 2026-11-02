@@ -9,6 +9,7 @@ from langchain_core.messages.utils import count_tokens_approximately
 
 from agent.graph import (
     AGENT_CONTEXT_MAX_TOKENS,
+    SYSTEM_PROMPT,
     _EMPTY_AI_PLACEHOLDER,
     _safeguard_tool_history,
     _system_message,
@@ -145,6 +146,23 @@ class ResponseLanguageTests(unittest.TestCase):
     def test_unknown_or_missing_language_falls_back_to_english(self) -> None:
         for value in (None, "", "fr"):
             self.assertIn("English only", _system_message(None, value).content)
+
+
+class ScopeGuardTests(unittest.TestCase):
+    """Phase 11 follow-up: the coach must refuse clearly off-topic requests
+    (trivia, history, exercise routines, etc.) on every provider, not just
+    ones (like Anthropic) that tend to stay in persona without being told
+    to explicitly. See `agent/graph.py`'s `SYSTEM_PROMPT` "MANDATORY SCOPE"
+    bullet and the `[Reminder]` appended in `_system_message`.
+    """
+
+    def test_system_prompt_states_mandatory_scope(self) -> None:
+        self.assertIn("MANDATORY SCOPE", SYSTEM_PROMPT)
+
+    def test_scope_reminder_present_and_before_language_directive(self) -> None:
+        content = _system_message("tourist", "en").content
+        self.assertIn("[Reminder]", content)
+        self.assertLess(content.index("[Reminder]"), content.rindex("[Response language]"))
 
 
 class OversizedLatestTurnTests(unittest.TestCase):

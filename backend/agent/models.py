@@ -46,8 +46,8 @@ MODEL_CATALOG: tuple[ModelOption, ...] = (
     ModelOption("gpt-4o", ModelProvider.OPENAI, "GPT-4o"),
     ModelOption("gpt-4o-mini", ModelProvider.OPENAI, "GPT-4o mini"),
     ModelOption("gpt-4.1", ModelProvider.OPENAI, "GPT-4.1"),
-    ModelOption("gemini-1.5-pro", ModelProvider.GOOGLE, "Gemini 1.5 Pro"),
-    ModelOption("gemini-1.5-flash", ModelProvider.GOOGLE, "Gemini 1.5 Flash"),
+    ModelOption("gemini-1.5-pro-002", ModelProvider.GOOGLE, "Gemini 1.5 Pro"),
+    ModelOption("gemini-1.5-flash-002", ModelProvider.GOOGLE, "Gemini 1.5 Flash"),
 )
 
 MODEL_BY_ID: dict[str, ModelOption] = {option.id: option for option in MODEL_CATALOG}
@@ -55,8 +55,12 @@ MODEL_BY_ID: dict[str, ModelOption] = {option.id: option for option in MODEL_CAT
 # Catalog ids that were offered before they existed on the provider.
 # Anthropic 404s `claude-haiku-5`; Haiku 4.5 (`claude-haiku-4-5`) is the
 # current fast model. Profiles saved with the old id keep working.
+# Google retired the undated `gemini-1.5-pro`/`gemini-1.5-flash` aliases;
+# the `-002` dated versions are what `generateContent` actually serves now.
 _RETIRED_MODEL_IDS: dict[str, str] = {
     "claude-haiku-5": "claude-haiku-4-5",
+    "gemini-1.5-pro": "gemini-1.5-pro-002",
+    "gemini-1.5-flash": "gemini-1.5-flash-002",
 }
 
 # Used as the implicit choice for brand-new profiles (see the
