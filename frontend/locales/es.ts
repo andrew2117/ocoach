@@ -37,7 +37,7 @@ export const es: Dictionary = {
     googleApiKey: "Clave API de Google Gemini",
     keyPlaceholderNewAnthropic: "sk-ant-...",
     keyPlaceholderNewOpenai: "sk-...",
-    keyPlaceholderNewGoogle: "AIza...",
+    keyPlaceholderNewGoogle: "AQ....",
     keyPlaceholderSaved:
       "Clave guardada ({preview}) — ingresa un nuevo valor para reemplazarla",
     keySavedHint:
@@ -52,7 +52,7 @@ export const es: Dictionary = {
     invalidKeyPrefixOpenai:
       "Clave API de OpenAI inválida. Las claves deben comenzar con sk-.",
     invalidKeyPrefixGoogle:
-      "Clave API de Google inválida. Las claves deben comenzar con AIza.",
+      "Clave API de Gemini inválida. Las claves de autorización deben comenzar con \"AQ.\".",
     invalidKeyLength:
       "Clave API inválida. La clave parece demasiado corta.",
     signOut: "Cerrar sesión",

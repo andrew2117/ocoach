@@ -39,8 +39,8 @@ class UpdateProfileRequest(BaseModel):
     google_api_key: str | None = Field(
         default=None,
         description=(
-            "Plaintext Google (Gemini) API key to encrypt and store. Omit or pass "
-            "null to leave an existing saved key unchanged."
+            "Plaintext Gemini authorization key (AQ....) to encrypt and store. "
+            "Omit or pass null to leave an existing saved key unchanged."
         ),
     )
     default_model: str | None = Field(

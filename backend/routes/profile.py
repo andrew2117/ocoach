@@ -38,12 +38,14 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/profile", tags=["profile"])
 
-# API keys across all three providers look like "<prefix>-<long opaque
-# string>" (Anthropic: "sk-ant-...", OpenAI: "sk-...", Google: "AIza...").
-# Keeping a short, fixed-length prefix + a short suffix is enough for a
-# user to recognize "yes, that's the key I saved" without reconstructing
-# anything usable — this is a UI affordance, not a secret, and must never
-# be treated as one.
+# API keys across all three providers start with a recognizable prefix
+# (Anthropic: "sk-ant-...", OpenAI: "sk-...", Gemini auth keys: "AQ....").
+# Gemini standard keys ("AIza...") are deprecated; AI Studio now issues
+# authorization keys bound to a service account. Keeping a short,
+# fixed-length prefix + a short suffix is enough for a user to recognize
+# "yes, that's the key I saved" without reconstructing anything usable —
+# this is a UI affordance, not a secret, and must never be treated as one.
+_GEMINI_AUTH_KEY_PREFIX = "AQ."
 _PREVIEW_PREFIX_CHARS = 7
 _PREVIEW_SUFFIX_CHARS = 4
 
@@ -136,6 +138,11 @@ async def save_profile(
 
     trimmed_google = payload.google_api_key.strip() if payload.google_api_key else None
     trimmed_google = trimmed_google or None
+    if trimmed_google is not None and not trimmed_google.startswith(_GEMINI_AUTH_KEY_PREFIX):
+        raise HTTPException(
+            status_code=400,
+            detail='Invalid Gemini API key. Authorization keys start with "AQ.".',
+        )
 
     trimmed_model = payload.default_model.strip() if payload.default_model else None
     trimmed_model = canonicalize_model_id(trimmed_model) or None

@@ -81,7 +81,7 @@ function isApiKeyFieldError(message: string): boolean {
 const KEY_PREFIX_BY_PROVIDER: Record<ModelProvider, { prefix: string; errorKey: TranslationKey }> = {
   anthropic: { prefix: "sk-ant-", errorKey: "settings.invalidKeyPrefixAnthropic" },
   openai: { prefix: "sk-", errorKey: "settings.invalidKeyPrefixOpenai" },
-  google: { prefix: "AIza", errorKey: "settings.invalidKeyPrefixGoogle" },
+  google: { prefix: "AQ.", errorKey: "settings.invalidKeyPrefixGoogle" },
 };
 
 function validateApiKey(provider: ModelProvider, key: string): TranslationKey | null {

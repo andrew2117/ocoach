@@ -105,12 +105,20 @@ class ProfileRoutesTests(unittest.TestCase):
 
     def test_adding_a_second_provider_key_does_not_clear_the_first(self) -> None:
         self.client.post("/api/profile", json={"anthropic_api_key": "sk-ant-fake-aaaaaaaaaaaaaaaa"})
-        res = self.client.post("/api/profile", json={"google_api_key": "AIza-fake-key-bbbbbbbbbbbb"})
+        res = self.client.post("/api/profile", json={"google_api_key": "AQ.Ab-fake-key-bbbbbbbbbbbb"})
         self.assertEqual(res.status_code, 200)
         body = res.json()
         self.assertTrue(body["has_anthropic_api_key"])
         self.assertTrue(body["has_google_api_key"])
         self.assertFalse(body["has_openai_api_key"])
+
+    def test_deprecated_aiza_gemini_key_is_rejected(self) -> None:
+        res = self.client.post(
+            "/api/profile",
+            json={"google_api_key": "AIza-fake-key-bbbbbbbbbbbb"},
+        )
+        self.assertEqual(res.status_code, 400)
+        self.assertIn("AQ.", res.json()["detail"])
 
     def test_unknown_default_model_is_rejected(self) -> None:
         res = self.client.post(

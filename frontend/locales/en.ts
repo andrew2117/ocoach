@@ -35,7 +35,7 @@ export const en = {
     googleApiKey: "Google Gemini API key",
     keyPlaceholderNewAnthropic: "sk-ant-...",
     keyPlaceholderNewOpenai: "sk-...",
-    keyPlaceholderNewGoogle: "AIza...",
+    keyPlaceholderNewGoogle: "AQ....",
     keyPlaceholderSaved:
       'Key saved ({preview}) — enter a new value to replace',
     keySavedHint:
@@ -50,7 +50,7 @@ export const en = {
     invalidKeyPrefixOpenai:
       "Invalid OpenAI API key. Keys should start with sk-.",
     invalidKeyPrefixGoogle:
-      "Invalid Google API key. Keys should start with AIza.",
+      "Invalid Gemini API key. Authorization keys should start with \"AQ.\".",
     invalidKeyLength: "Invalid API key. The key appears too short.",
     signOut: "Sign out",
     cancel: "Cancel",
