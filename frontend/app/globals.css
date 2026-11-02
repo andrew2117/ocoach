@@ -63,9 +63,24 @@ body {
 
 .markdown-content .katex-display {
   margin: 0.6em 0;
+  white-space: normal;
+}
+
+/* Scroll the visible formula, not .katex-display. Overflow on
+   .katex-display includes the hidden MathML node, and that node is what
+   turns into a tall blank region under the chat. */
+.markdown-content .katex-display > .katex > .katex-html {
   overflow-x: auto;
   overflow-y: hidden;
-  white-space: normal;
+}
+
+/* Keep the screen-reader MathML out of every ancestor scrollport,
+   including the message list. */
+.markdown-content .katex .katex-mathml {
+  contain: strict;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
 }
 
 .markdown-content ul,

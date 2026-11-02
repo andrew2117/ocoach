@@ -332,7 +332,7 @@ export default function Chat() {
   }
 
   return (
-    <div className="flex h-screen bg-white dark:bg-zinc-950">
+    <div className="fixed inset-0 flex overflow-hidden bg-white dark:bg-zinc-950">
       <Sidebar
         activeSessionId={sessionId}
         onSelectSession={handleSelectSession}
@@ -344,7 +344,7 @@ export default function Chat() {
         onMobileClose={() => setMobileSidebarOpen(false)}
       />
 
-      <div className="flex flex-col flex-1 min-w-0">
+      <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         <header className="flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800 px-4 py-3 shrink-0">
           <div className="flex items-center gap-2">
             <button
@@ -374,7 +374,7 @@ export default function Chat() {
           </div>
         </header>
 
-        <div className="flex flex-col flex-1 min-h-0 px-4">
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-4">
           {bannerError && (
             <div className="flex items-center justify-between gap-3 mt-3 border border-red-300 dark:border-red-800 bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-300 text-sm rounded-lg px-3 py-2">
               <span>{bannerError}</span>
@@ -391,7 +391,7 @@ export default function Chat() {
 
           <div
             ref={scrollRef}
-            className="flex-1 overflow-y-auto flex flex-col gap-4 py-4"
+            className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto overscroll-y-contain py-4"
           >
             {messages.length === 0 && (
               <p className="text-sm text-zinc-500 dark:text-zinc-400 text-center mt-8">

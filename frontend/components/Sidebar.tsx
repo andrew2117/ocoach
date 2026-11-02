@@ -229,8 +229,8 @@ export default function Sidebar({
   }
 
   const asideClasses = [
-    "flex flex-col border-r border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 shrink-0",
-    "w-64 h-full",
+    "flex h-full min-h-0 flex-col overflow-hidden border-r border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 shrink-0",
+    "w-64",
     "fixed inset-y-0 left-0 z-40 transition-transform duration-150 lg:relative lg:translate-x-0",
     mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0",
   ].join(" ");
@@ -276,7 +276,7 @@ export default function Sidebar({
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-2 pb-3">
+        <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-3">
           {loading && (
             <p className="text-xs text-zinc-500 px-2 py-2">
               {t("sidebar.loadingSessions")}
