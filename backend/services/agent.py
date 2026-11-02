@@ -54,23 +54,34 @@ STREAMED_TOOL_NAMES = {
 }
 
 
+# Visible reply text. Tool calls and reasoning stay out of the chat bubble.
+# OpenAI's Responses API uses `output_text`; Anthropic and Gemini use `text`.
+_VISIBLE_TEXT_TYPES = frozenset({"text", "output_text"})
+
+
 def _extract_text(content: Any) -> str:
-    """Anthropic streams content as either a plain string or a list of
-    blocks (text / tool_use / thinking); only plain text should reach the
-    client — tool-call argument deltas aren't user-facing text. OpenAI and
-    Gemini chunks are covered by the plain-`str` branch (they don't emit
-    Anthropic-style content-block lists for ordinary text), so this needs
-    no per-provider branching despite running regardless of which of the
-    three `AGENT_TOOLS`-bound models (see `agent/graph.py`) produced the
-    chunk.
+    """Turns a streamed model chunk into the markdown string the UI renders.
+
+    All three providers emit that string in different shapes: a plain string
+    (OpenAI chat completions), a list of `text` blocks (Anthropic, Gemini),
+    or `output_text` blocks (OpenAI Responses). Thinking, reasoning, and
+    tool-call blocks are not user-facing and are dropped.
     """
     if isinstance(content, str):
         return content
-    if isinstance(content, list):
-        return "".join(
-            block.get("text", "") for block in content if isinstance(block, dict) and block.get("type") == "text"
-        )
-    return ""
+    if not isinstance(content, list):
+        return ""
+    parts: list[str] = []
+    for block in content:
+        if isinstance(block, str):
+            parts.append(block)
+            continue
+        if not isinstance(block, dict) or block.get("type") not in _VISIBLE_TEXT_TYPES:
+            continue
+        text = block.get("text")
+        if isinstance(text, str) and text:
+            parts.append(text)
+    return "".join(parts)
 
 
 def _tool_message_content(output: Any) -> str:
