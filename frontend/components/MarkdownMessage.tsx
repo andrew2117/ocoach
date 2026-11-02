@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeHighlight from "rehype-highlight";
@@ -25,7 +26,7 @@ const COMPONENTS: Components = {
  * sizes — `react-markdown` never uses `dangerouslySetInnerHTML`, so this
  * stays safe to use directly on raw LLM output.
  */
-export default function MarkdownMessage({ content }: { content: string }) {
+function MarkdownMessage({ content }: { content: string }) {
   return (
     <div className="markdown-content">
       <ReactMarkdown
@@ -38,3 +39,5 @@ export default function MarkdownMessage({ content }: { content: string }) {
     </div>
   );
 }
+
+export default memo(MarkdownMessage);

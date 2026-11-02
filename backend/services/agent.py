@@ -118,6 +118,7 @@ async def stream_agent_reply(
     thread_id: str,
     default_model: str,
     codeforces_handle: str | None = None,
+    language: str = "en",
 ) -> AsyncGenerator[dict[str, Any], None]:
     """Runs `message` through the LangGraph CP coach agent, yielding stream
     events for the frontend SSE layer.
@@ -169,6 +170,9 @@ async def stream_agent_reply(
             "api_keys": api_keys,
             "default_model": model.id,
             "codeforces_handle": codeforces_handle,
+            # Per-request only (config is never checkpointed): the UI
+            # language the reply must be written in.
+            "language": language,
         },
         "recursion_limit": settings.agent_recursion_limit,
     }

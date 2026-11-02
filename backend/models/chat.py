@@ -1,5 +1,7 @@
 """Pydantic request/response models for the chat endpoint."""
 
+from typing import Literal
+
 from pydantic import BaseModel, Field
 
 
@@ -22,6 +24,13 @@ class ChatRequest(BaseModel):
             "see agent/graph.py) and the Supabase-backed message log used to "
             "render this thread in the UI. Callers must create a session first "
             "(POST /api/sessions) and pass its id here."
+        ),
+    )
+    language: Literal["en", "es"] = Field(
+        default="en",
+        description=(
+            "The UI language selected by the user. The agent replies strictly "
+            "in this language, regardless of the language of the prompt."
         ),
     )
     codeforces_handle: str | None = Field(

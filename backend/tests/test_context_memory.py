@@ -11,6 +11,7 @@ from agent.graph import (
     AGENT_CONTEXT_MAX_TOKENS,
     _EMPTY_AI_PLACEHOLDER,
     _safeguard_tool_history,
+    _system_message,
     _trim_state_messages_for_llm,
 )
 from agent.tools import LLM_TOOL_OUTPUT_MAX_CHARS, TRUNCATION_WARNING, _format_result
@@ -130,6 +131,34 @@ class ToolOutputTruncationTests(unittest.TestCase):
         self.assertTrue(trimmed)
         assert_alternating_human_ai(trimmed)
         self.assertTrue(any(isinstance(msg, ToolMessage) for msg in trimmed))
+
+
+class ResponseLanguageTests(unittest.TestCase):
+    def test_directive_matches_selected_ui_language_and_comes_last(self) -> None:
+        en = _system_message("tourist", "en").content
+        es = _system_message("tourist", "es").content
+        self.assertIn("English only", en)
+        self.assertIn("Spanish (español) only", es)
+        self.assertTrue(en.rstrip().endswith("unchanged."))
+        self.assertLess(es.index("tourist"), es.rindex("[Response language]"))
+
+    def test_unknown_or_missing_language_falls_back_to_english(self) -> None:
+        for value in (None, "", "fr"):
+            self.assertIn("English only", _system_message(None, value).content)
+
+
+class OversizedLatestTurnTests(unittest.TestCase):
+    def test_keeps_latest_human_message_when_it_exceeds_token_budget(self) -> None:
+        huge = "x " * 20_000  # far beyond AGENT_CONTEXT_MAX_TOKENS
+        history = [
+            HumanMessage(content="earlier question"),
+            AIMessage(content="earlier answer"),
+            HumanMessage(content=huge),
+        ]
+        trimmed = _trim_state_messages_for_llm(history)
+        self.assertEqual(len(trimmed), 1)
+        self.assertIsInstance(trimmed[0], HumanMessage)
+        self.assertEqual(trimmed[0].content, huge)
 
 
 class SafeguardToolHistoryTests(unittest.TestCase):

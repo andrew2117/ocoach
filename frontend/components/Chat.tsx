@@ -7,7 +7,7 @@ import {
   Settings,
   Square,
 } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 import "highlight.js/styles/github-dark.css";
 import CodeforcesStatsCard from "./CodeforcesStatsCard";
 import ExecutionCard from "./ExecutionCard";
@@ -34,7 +34,7 @@ import {
 import { useLanguage } from "@/lib/LanguageContext";
 
 export default function Chat() {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [sessionId, setSessionId] = useState<string | null>(null);
@@ -166,7 +166,7 @@ export default function Chat() {
       setMessages([...streamMessagesRef.current]);
     };
 
-    const appendToken = (chunk: string) => {
+    const appendTokenNow = (chunk: string) => {
       applyStreamMessages((current) => {
         const next = [...current];
         const last = next[next.length - 1];
@@ -182,7 +182,35 @@ export default function Chat() {
       });
     };
 
+    // Streamed tokens are buffered and flushed at most once per animation
+    // frame, so a fast stream doesn't trigger a React render (and a
+    // markdown re-parse + scroll/layout) for every single token.
+    let pendingText = "";
+    let frameId: number | null = null;
+
+    const flushTokens = () => {
+      if (frameId !== null) {
+        cancelAnimationFrame(frameId);
+        frameId = null;
+      }
+      if (!pendingText) return;
+      const chunk = pendingText;
+      pendingText = "";
+      appendTokenNow(chunk);
+    };
+
+    const appendToken = (chunk: string) => {
+      pendingText += chunk;
+      if (frameId === null) {
+        frameId = requestAnimationFrame(() => {
+          frameId = null;
+          flushTokens();
+        });
+      }
+    };
+
     const appendToolLoading = (tool: ToolName) => {
+      flushTokens();
       applyStreamMessages((current) => [
         ...current,
         { role: "tool", tool, status: "loading" } as ToolChatMessage,
@@ -193,6 +221,7 @@ export default function Chat() {
       tool: T,
       rawResult: unknown,
     ) => {
+      flushTokens();
       const result = normalizeToolResult(tool, rawResult);
       if (!result) return;
 
@@ -245,7 +274,11 @@ export default function Chat() {
       const res = await authFetch("/api/chat", {
         method: "POST",
         signal: controller.signal,
-        body: JSON.stringify({ message: text, thread_id: sessionId }),
+        body: JSON.stringify({
+          message: text,
+          thread_id: sessionId,
+          language,
+        }),
       });
 
       await assertOk(res);
@@ -261,6 +294,7 @@ export default function Chat() {
       });
       setSidebarRefresh((n) => n + 1);
     } catch (err) {
+      flushTokens();
       if (controller.signal.aborted) {
         applyStreamMessages((current) => {
           const next = [...current];
@@ -279,6 +313,7 @@ export default function Chat() {
         appendToken(`Error: ${(err as Error).message}`);
       }
     } finally {
+      flushTokens();
       abortControllerRef.current = null;
       setIsStreaming(false);
     }
@@ -351,67 +386,9 @@ export default function Chat() {
                 {t("chat.emptyState")}
               </p>
             )}
-            {messages.map((m, i) => {
-              if (m.role === "tool") {
-                return (
-                  <div key={i} className="self-start max-w-[90%] w-full">
-                    {m.tool === "compile_and_test_cpp" && (
-                      <ExecutionCard
-                        loading={m.status === "loading"}
-                        result={m.result}
-                      />
-                    )}
-                    {m.tool === "get_user_stats" && (
-                      <CodeforcesStatsCard
-                        kind="stats"
-                        loading={m.status === "loading"}
-                        result={m.result}
-                      />
-                    )}
-                    {m.tool === "get_upcoming_contests" && (
-                      <CodeforcesStatsCard
-                        kind="contests"
-                        loading={m.status === "loading"}
-                        result={m.result}
-                      />
-                    )}
-                    {m.tool === "search_cp_knowledge" && (
-                      <RAGCitationBadge
-                        loading={m.status === "loading"}
-                        result={m.result}
-                      />
-                    )}
-                  </div>
-                );
-              }
-
-              if (m.role === "assistant" && !m.content) {
-                return null;
-              }
-
-              if (m.role === "user") {
-                return (
-                  <div key={i} className="flex justify-end">
-                    <div className="max-w-[85%] rounded-2xl rounded-tr-sm bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 px-4 py-2.5">
-                      <p className="text-sm whitespace-pre-wrap">{m.content}</p>
-                    </div>
-                  </div>
-                );
-              }
-
-              return (
-                <div key={i} className="flex gap-3 max-w-[90%]">
-                  <div className="shrink-0 flex items-start pt-1">
-                    <div className="flex items-center justify-center h-7 w-7 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300">
-                      <Bot className="h-4 w-4" />
-                    </div>
-                  </div>
-                  <div className="min-w-0 text-zinc-900 dark:text-zinc-100">
-                    <MarkdownMessage content={m.content} />
-                  </div>
-                </div>
-              );
-            })}
+            {messages.map((m, i) => (
+              <MessageRow key={i} message={m} />
+            ))}
           </div>
 
           <div className="shrink-0 pb-4 pt-2">
@@ -475,6 +452,74 @@ export default function Chat() {
     </div>
   );
 }
+
+// Memoized so that during streaming only the message that actually changed
+// re-renders. `applyStreamMessages` replaces just the touched message object,
+// so unchanged messages keep their identity and skip re-rendering — which
+// avoids re-parsing/highlighting earlier markdown replies and re-laying-out
+// a very large user prompt on every streamed token.
+const MessageRow = memo(function MessageRow({
+  message: m,
+}: {
+  message: ChatMessage;
+}) {
+  if (m.role === "tool") {
+    return (
+      <div className="self-start max-w-[90%] w-full">
+        {m.tool === "compile_and_test_cpp" && (
+          <ExecutionCard loading={m.status === "loading"} result={m.result} />
+        )}
+        {m.tool === "get_user_stats" && (
+          <CodeforcesStatsCard
+            kind="stats"
+            loading={m.status === "loading"}
+            result={m.result}
+          />
+        )}
+        {m.tool === "get_upcoming_contests" && (
+          <CodeforcesStatsCard
+            kind="contests"
+            loading={m.status === "loading"}
+            result={m.result}
+          />
+        )}
+        {m.tool === "search_cp_knowledge" && (
+          <RAGCitationBadge
+            loading={m.status === "loading"}
+            result={m.result}
+          />
+        )}
+      </div>
+    );
+  }
+
+  if (m.role === "assistant" && !m.content) {
+    return null;
+  }
+
+  if (m.role === "user") {
+    return (
+      <div className="flex justify-end">
+        <div className="max-w-[85%] rounded-2xl rounded-tr-sm bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 px-4 py-2.5">
+          <p className="text-sm whitespace-pre-wrap break-words">{m.content}</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex gap-3 max-w-[90%]">
+      <div className="shrink-0 flex items-start pt-1">
+        <div className="flex items-center justify-center h-7 w-7 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300">
+          <Bot className="h-4 w-4" />
+        </div>
+      </div>
+      <div className="min-w-0 text-zinc-900 dark:text-zinc-100">
+        <MarkdownMessage content={m.content} />
+      </div>
+    </div>
+  );
+});
 
 type SseHandlers = {
   signal?: AbortSignal;

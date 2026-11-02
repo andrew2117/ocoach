@@ -104,6 +104,7 @@ async def agent_chat_stream(
     thread_id: str,
     user_id: str,
     request_id: str,
+    language: str = "en",
 ) -> AsyncGenerator[str, None]:
     """Runs the LangGraph agent and yields SSE frames of its reply, word for
     word as tokens arrive, ending with a `[DONE]` sentinel frame.
@@ -125,6 +126,7 @@ async def agent_chat_stream(
             thread_id=thread_id,
             default_model=default_model,
             codeforces_handle=codeforces_handle,
+            language=language,
         ):
             if event.get("type") == "token":
                 reply_chunks.append(event.get("content", ""))
@@ -251,6 +253,7 @@ async def chat(payload: ChatRequest, user: AuthenticatedUser = Depends(get_curre
             payload.thread_id,
             user.user_id,
             request_id,
+            payload.language,
         ),
         media_type="text/event-stream",
         headers={

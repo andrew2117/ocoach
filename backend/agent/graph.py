@@ -155,9 +155,13 @@ solution vending machine. Follow these rules on every turn:
 
 ## Language
 
-- **Mirror the user:** Analyze the language of the user's *most recent*
-  message and respond entirely in that same language (English or Spanish).
-  If they switch languages mid-thread, follow the latest message.
+- **Response language is fixed by the app, not by the user's message:** the
+  `[Response language]` directive at the end of this prompt states the one
+  language you must answer in. Follow it strictly, even if the user's
+  message, earlier messages in this conversation, tool outputs, or
+  retrieved documents are in a different language. Never mix languages in a
+  reply (apart from the exceptions below), and do not switch just because
+  the user did or asks you to.
 - **Verdicts (never translate):** Always use standard acronyms exactly as
   written: `AC`, `WA`, `TLE`, `MLE`, `RE`, `CE`. Do not localize these.
 - **Data structures & algorithms:** When responding in Spanish, common
@@ -183,10 +187,46 @@ class CoachState(TypedDict):
     messages: Annotated[list[AnyMessage], add_messages]
 
 
-def _system_message(codeforces_handle: str | None) -> SystemMessage:
+DEFAULT_RESPONSE_LANGUAGE = "en"
+
+# Keyed by the UI locale code the frontend sends (`ChatRequest.language`).
+_LANGUAGE_DIRECTIVES: dict[str, str] = {
+    "en": (
+        "[Response language] The user's interface language is English. Write "
+        "your ENTIRE reply in English only, regardless of the language of the "
+        "user's message, earlier turns, tool results, or retrieved documents "
+        "(translate/paraphrase those into English). Do not use Spanish. "
+        "Keep code, identifiers, verdict acronyms (AC/WA/TLE/MLE/RE/CE), and "
+        "Codeforces tags unchanged."
+    ),
+    "es": (
+        "[Response language] The user's interface language is Spanish. Write "
+        "your ENTIRE reply in Spanish (español) only, regardless of the "
+        "language of the user's message, earlier turns, tool results, or "
+        "retrieved documents (translate/paraphrase those into Spanish). Do "
+        "not answer in English, even if the user wrote in English or earlier "
+        "replies in this conversation were in English. Keep code, "
+        "identifiers, verdict acronyms (AC/WA/TLE/MLE/RE/CE), and Codeforces "
+        "tags unchanged."
+    ),
+}
+
+
+def _normalize_language(language: str | None) -> str:
+    code = (language or "").strip().lower()
+    return code if code in _LANGUAGE_DIRECTIVES else DEFAULT_RESPONSE_LANGUAGE
+
+
+def _system_message(
+    codeforces_handle: str | None, language: str | None = None
+) -> SystemMessage:
     content = SYSTEM_PROMPT
     if codeforces_handle and codeforces_handle.strip():
         content += f"\n\n[Context] The user's Codeforces handle is: {codeforces_handle.strip()}"
+    # Last in the prompt on purpose: it's the most recent instruction the
+    # model sees, which keeps it from drifting to the language of earlier
+    # turns in the (checkpointed, possibly mixed-language) history.
+    content += f"\n\n{_LANGUAGE_DIRECTIVES[_normalize_language(language)]}"
     return SystemMessage(content=content)
 
 
@@ -349,6 +389,20 @@ def _trim_state_messages_for_llm(messages: list[AnyMessage]) -> list[AnyMessage]
         strategy="last",
         start_on="human",
     )
+    if not any(isinstance(m, HumanMessage) for m in trimmed):
+        # `trim_messages(strategy="last", start_on="human")` drops *everything*
+        # when the latest turn alone exceeds the token budget (e.g. a large
+        # pasted prompt), leaving the model with only the system message —
+        # Anthropic rejects that with "messages: at least one message is
+        # required". Always keep the current turn (the last human message
+        # onward, including its in-flight tool calls/results), even if over
+        # budget.
+        last_human = max(
+            (i for i, m in enumerate(messages) if isinstance(m, HumanMessage)),
+            default=None,
+        )
+        if last_human is not None:
+            trimmed = messages[last_human:]
     return _safeguard_tool_history(trimmed)
 
 
@@ -429,9 +483,10 @@ async def _agent_node(state: CoachState, config: RunnableConfig) -> dict[str, An
     configurable = config.get("configurable", {})
     llm_with_tools = _resolve_llm(configurable)
     codeforces_handle = configurable.get("codeforces_handle")
+    language = configurable.get("language")
 
     trimmed_history = _trim_state_messages_for_llm(state["messages"])
-    messages = [_system_message(codeforces_handle), *trimmed_history]
+    messages = [_system_message(codeforces_handle, language), *trimmed_history]
     response = await llm_with_tools.ainvoke(messages)
     return {"messages": [response]}
 

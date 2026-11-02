@@ -104,6 +104,37 @@ services:
       - ocoach-network
     logging: *default-logging
 
+  # One-shot job: a fresh `piston_data` volume ships with NO language
+  # packages, so `compile_and_test_cpp` gets 400 "c++ runtime is unknown"
+  # until GCC (which provides c++/c) is installed. Idempotent: if the
+  # package is already installed Piston answers with an error, which is
+  # ignored. Re-runs on every `docker compose up`; the install itself
+  # persists in the piston_data volume.
+  piston-init:
+    image: curlimages/curl:8.10.1
+    container_name: ocoach-piston-init
+    restart: "no"
+    depends_on:
+      piston:
+        condition: service_started
+    networks:
+      - ocoach-network
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        for i in $$(seq 1 30); do
+          curl -sf http://piston:2000/api/v2/runtimes >/dev/null && break
+          sleep 2
+        done
+        if curl -sf http://piston:2000/api/v2/runtimes | grep -q '"language":"gcc"'; then
+          echo "gcc already installed"
+        else
+          curl -sS -X POST http://piston:2000/api/v2/packages \
+            -H 'Content-Type: application/json' \
+            -d '{"language":"gcc","version":"*"}'
+        fi
+    logging: *default-logging
+
 networks:
   ocoach-network:
     driver: bridge
