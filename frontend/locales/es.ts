@@ -65,6 +65,7 @@ export const es: Dictionary = {
     settings: "Configuración",
     placeholder: "Escribe un mensaje…",
     stopGenerating: "Detener generación",
+    thinking: "Pensando",
     sendMessage: "Enviar mensaje",
     emptyState: "Di hola para iniciar la conversación.",
     enterToSend: "Enter para enviar · Shift+Enter para nueva línea",

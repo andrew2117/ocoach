@@ -51,9 +51,21 @@ export default function Chat() {
 
   const hasInput = input.trim().length > 0;
 
+  // Show the "thinking" animation while a response is in flight but nothing
+  // visible is being produced: before the first token, and again between a
+  // finished tool call and the model's next output. Running tools already
+  // render their own loading cards.
+  const lastMessage = messages[messages.length - 1];
+  const showThinking =
+    isStreaming &&
+    (!lastMessage ||
+      lastMessage.role === "user" ||
+      (lastMessage.role === "assistant" && !lastMessage.content) ||
+      (lastMessage.role === "tool" && lastMessage.status === "complete"));
+
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
-  }, [messages]);
+  }, [messages, showThinking]);
 
   useEffect(() => {
     const el = textareaRef.current;
@@ -389,6 +401,7 @@ export default function Chat() {
             {messages.map((m, i) => (
               <MessageRow key={i} message={m} />
             ))}
+            {showThinking && <ThinkingIndicator label={t("chat.thinking")} />}
           </div>
 
           <div className="shrink-0 pb-4 pt-2">
@@ -520,6 +533,35 @@ const MessageRow = memo(function MessageRow({
     </div>
   );
 });
+
+function ThinkingIndicator({ label }: { label: string }) {
+  return (
+    <div
+      className="flex gap-3 max-w-[90%]"
+      role="status"
+      aria-live="polite"
+      aria-label={label}
+    >
+      <div className="shrink-0 flex items-start pt-1">
+        <div className="flex items-center justify-center h-7 w-7 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300">
+          <Bot className="h-4 w-4 animate-pulse" />
+        </div>
+      </div>
+      <div className="flex items-center gap-2 py-1.5 text-sm text-zinc-500 dark:text-zinc-400">
+        <span className="animate-pulse">{label}</span>
+        <span className="flex items-center gap-1" aria-hidden="true">
+          {[0, 150, 300].map((delay) => (
+            <span
+              key={delay}
+              className="h-1.5 w-1.5 rounded-full bg-zinc-400 dark:bg-zinc-500 animate-bounce"
+              style={{ animationDelay: `${delay}ms` }}
+            />
+          ))}
+        </span>
+      </div>
+    </div>
+  );
+}
 
 type SseHandlers = {
   signal?: AbortSignal;

@@ -112,6 +112,20 @@ def _missing_provider_key_message(exc: MissingProviderKeyError) -> str:
     )
 
 
+def _describe_error(exc: BaseException) -> str:
+    """Human-readable error text. Timeout exceptions (httpx/openai/anthropic)
+    often have an empty `str()`, which previously rendered as a blank message.
+    """
+    text = str(exc).strip()
+    name = type(exc).__name__
+    if "timeout" in name.lower() or isinstance(exc, TimeoutError):
+        return (
+            f"the model provider took too long to respond ({name}). "
+            "Large prompts can be slow — try again, shorten the prompt, or pick a faster model."
+        )
+    return f"{name}: {text}" if text else name
+
+
 async def stream_agent_reply(
     message: str,
     api_keys: dict[str, str],
@@ -222,5 +236,5 @@ async def stream_agent_reply(
         logger.exception("Agent graph execution failed")
         yield {
             "type": "token",
-            "content": f"(Sorry, something went wrong while generating a response: {exc})",
+            "content": f"(Sorry, something went wrong while generating a response: {_describe_error(exc)})",
         }

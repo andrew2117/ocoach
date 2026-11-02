@@ -81,6 +81,13 @@ class Settings(BaseSettings):
     # multiple compile/test cycles + a final answer.
     agent_recursion_limit: int = 25
 
+    # Per-request timeout (seconds) for the LLM provider HTTP clients. This is
+    # a read timeout, i.e. the max silence while waiting for the provider's
+    # first token / next chunk. Large pasted prompts and reasoning models can
+    # take well over 30s to start responding, so keep this generous (but below
+    # Caddy's 900s upstream read_timeout in `Caddyfile`).
+    llm_request_timeout_seconds: float = 300.0
+
     # Phase 6: direct Postgres connection string for the LangGraph
     # `AsyncPostgresSaver` checkpointer (agent memory, keyed by `thread_id`).
     # This is a *different* credential from `supabase_url`/`supabase_secret_key`

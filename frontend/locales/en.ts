@@ -62,6 +62,7 @@ export const en = {
     settings: "Settings",
     placeholder: "Type a message…",
     stopGenerating: "Stop generating",
+    thinking: "Thinking",
     sendMessage: "Send message",
     emptyState: "Say hello to start the conversation.",
     enterToSend: "Enter to send · Shift+Enter for new line",

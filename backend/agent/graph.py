@@ -58,6 +58,7 @@ from langgraph.prebuilt import ToolNode, tools_condition
 
 from agent.models import MissingProviderKeyError, ModelOption, ModelProvider, resolve_model
 from agent.tools import compile_and_test_cpp, generate_practice_contest
+from core.config import settings
 from services.tools import ALL_TOOLS
 
 # Phase 7: `compile_and_test_cpp` is defined in `agent/tools.py` (not
@@ -73,7 +74,12 @@ AGENT_TOOLS = [*ALL_TOOLS, compile_and_test_cpp, generate_practice_contest]
 
 logger = logging.getLogger(__name__)
 
-REQUEST_TIMEOUT_SECONDS = 30.0
+# LLM calls: large prompts / reasoning models can take minutes to produce the
+# first token, so this must be far above the old 30s (which caused empty
+# "Sorry, something went wrong" errors). Configurable via
+# `LLM_REQUEST_TIMEOUT_SECONDS`. Retries stay low: each retry restarts the
+# whole (slow) request, so a timeout would otherwise cost 2x the wait.
+REQUEST_TIMEOUT_SECONDS = settings.llm_request_timeout_seconds
 MAX_RETRIES = 1
 
 # Phase 9: token budget for the LLM context window. The checkpointer still
